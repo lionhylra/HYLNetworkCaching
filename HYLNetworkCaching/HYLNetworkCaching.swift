@@ -16,13 +16,13 @@ let kModelNameAttributeName = "modelName"
 //let kIndexAttributeName = "id"
 //let kSortKeyAttributName = "sortKey"
 
-protocol HYLNetworkCachingDelegate{
+protocol HYLNetworkCachingDelegate:class {
     func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
 }
 
 class HYLNetworkCaching: NSObject {
     
-    var delegate:HYLNetworkCachingDelegate!
+    weak var delegate:HYLNetworkCachingDelegate?
     
     init(delegate:HYLNetworkCachingDelegate){
         self.delegate = delegate
@@ -42,7 +42,7 @@ class HYLNetworkCaching: NSObject {
         if self.delegate == nil {
             return
         }
-        self.delegate.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
+        self.delegate!.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
             self.updateCacheForModelName(modelName, data: data)
                 if let successBlock = success {
                     successBlock(data: data)
