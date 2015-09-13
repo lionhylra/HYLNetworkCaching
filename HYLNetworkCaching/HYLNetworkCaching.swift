@@ -17,7 +17,7 @@ let kModelNameAttributeName = "modelName"
 //let kSortKeyAttributName = "sortKey"
 
 protocol HYLNetworkCachingDelegate{
-    func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void)?,failure:((error:NSError)->Void)?)
+    func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
 }
 
 class HYLNetworkCaching: NSObject {
@@ -33,20 +33,25 @@ class HYLNetworkCaching: NSObject {
     
     
     // MARK: - internal methods
-    func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void), failure:((error:NSError)->Void)){
+    func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         /* fetch cached data */
-        if let cachedData: AnyObject? = fetchDataFromCoredataForModelName(modelName) {
-            success(data: cachedData)
+        if let cachedData: AnyObject? = fetchDataFromCoredataForModelName(modelName), successBlock = success {
+            successBlock(data: cachedData)
         }
-            
+        
         if self.delegate == nil {
             return
         }
-        
         self.delegate.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
             self.updateCacheForModelName(modelName, data: data)
-            success(data: data)
-            }, failure: failure)
+                if let successBlock = success {
+                    successBlock(data: data)
+                }
+            }, failure:{(error)->Void in
+                if let failureBlock = failure {
+                    failureBlock(error: error)
+                }
+        })
     }
     
     // MARK: - private methods
