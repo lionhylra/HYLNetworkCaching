@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Hylnetworkcaching by lionhylra</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Hylnetworkcaching</h1>
+      <h2 class="project-tagline">A light tool that used to cache network request for offline access.</h2>
+      <a href="https://github.com/lionhylra/HYLNetworkCaching" class="btn">View on GitHub</a>
+      <a href="https://github.com/lionhylra/HYLNetworkCaching/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/lionhylra/HYLNetworkCaching/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="hylnetworkcaching" class="anchor" href="#hylnetworkcaching" aria-hidden="true"><span class="octicon octicon-link"></span></a>HYLNetworkCaching</h1>
+
+<p>A light tool that used to cache network request for offline access.</p>
+
+<h2>
+<a id="install" class="anchor" href="#install" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install</h2>
+
+<p>Drag and Drop "HYLNetworkCaching" folder into your project.</p>
+
+<h2>
+<a id="how-to-use" class="anchor" href="#how-to-use" aria-hidden="true"><span class="octicon octicon-link"></span></a>How to use</h2>
+
+<ol>
+<li>
+<p>Initialize a instance of HYLNetworkCaching</p>
+
+<div class="highlight highlight-swift"><pre><span class="pl-c">// In the network module</span>
+<span class="pl-k">let</span> networkCache <span class="pl-k">=</span> HYLNetworkCaching(delegate: <span class="pl-k">self</span>)</pre></div>
+</li>
+<li>
+<p>Implement the method in delegate. In this is the method where you get the data from network and put the data into callback closure. Specify a name for each piece of result returned from network request. We use AFNetworking in the example below.</p>
+
+<div class="highlight highlight-swift"><pre><span class="pl-k">func</span> <span class="pl-en">fetchDataFromNetworkForModelName</span>(
+    modelName: <span class="pl-c1">String</span>,
+      success: ((data: <span class="pl-c1">AnyObject</span>) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span>),
+      failure: ((error: NSError) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span>)) {
+
+        <span class="pl-k">if</span> modelName <span class="pl-k">==</span> <span class="pl-s"><span class="pl-pds">"</span>employer<span class="pl-pds">"</span></span> {
+            <span class="pl-k">let</span> manager <span class="pl-k">=</span> AFHTTPRequestOperationManager()
+            <span class="pl-k">let</span> url <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>http://xxx.com/api/getdata<span class="pl-pds">"</span></span>
+            manager<span class="pl-k">.</span>GET(url, parameters: <span class="pl-c1">nil</span>, success: { (operation, responseObject) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span> <span class="pl-k">in</span>
+                success(data: responseObject)<span class="pl-c">//1</span>
+            }) { (operation, error) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span> <span class="pl-k">in</span>
+               failure(error: error)
+            }
+        }
+}
+
+<span class="pl-c">//[1]:What you put into the success closure will be what you will get from func fetchDataForModelName(modelName:String, success:((data:AnyObject?)-&gt;Void)?, failure:((error:NSError)-&gt;Void)?)</span></pre></div>
+</li>
+<li>
+<p>Then from your view controller, fetch the data.</p>
+
+<div class="highlight highlight-swift"><pre><span class="pl-k">let</span> networkCache <span class="pl-k">=</span> <span class="pl-k">...</span>
+networkCache<span class="pl-k">.</span>fetchDataForModelName(<span class="pl-s"><span class="pl-pds">"</span>TestResult<span class="pl-pds">"</span></span>, success: { (data) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span> <span class="pl-k">in</span>
+            <span class="pl-k">if</span> data <span class="pl-k">==</span> <span class="pl-c1">nil</span> {
+                <span class="pl-k">return</span>
+            }
+            println(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-pse">\(</span><span class="pl-s1">data</span><span class="pl-pse">)</span><span class="pl-pds">"</span></span>)
+        }) { (error) <span class="pl-k">-&gt;</span> <span class="pl-c1">Void</span> <span class="pl-k">in</span>
+            println(error<span class="pl-k">.</span>localizedDescription)
+        }</pre></div>
+</li>
+</ol>
+
+<h2>
+<a id="what-happens-behind-the-scene" class="anchor" href="#what-happens-behind-the-scene" aria-hidden="true"><span class="octicon octicon-link"></span></a>What happens behind the scene</h2>
+
+<p>For the first time app requests data, the cache doesn't has the data. So it first fetch data from network API, then return the data immediately on main thread and meanwhile save the data to the cache on anoher thread.</p>
+
+<p>After that, when app requests data, it first get the cached data from Core Data, and then request the API. After receiving the data from API, it returns the data to the success closure immediately and meanwhile update(delete the old data and insert the new data) the cached data in Core Data.</p>
+
+<p>If network is not available, it returns cached data only and the failure closure is called.</p>
+
+<p><img src="https://github.com/lionhylra/HYLNetworkCaching/blob/master/activity%20diagram.png?raw=true" alt="activity diagram"></p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/lionhylra/HYLNetworkCaching">Hylnetworkcaching</a> is maintained by <a href="https://github.com/lionhylra">lionhylra</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
