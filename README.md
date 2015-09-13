@@ -52,3 +52,4 @@ After that, when app requests data, it first get the cached data from Core Data,
 
 If network is not available, it returns cached data only and the failure closure is called.
 
+![activity diagram](https://github.com/lionhylra/HYLNetworkCaching/blob/master/activity%20diagram.png?raw=true)
