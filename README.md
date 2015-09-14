@@ -57,3 +57,7 @@ If network is not available, it returns cached data only and the failure closure
 
 ![activity diagram](https://github.com/lionhylra/HYLNetworkCaching/blob/master/activity%20diagram.png?raw=true)
 
+## Notice on usage
+This class is suitable for some simple API data that only used to display. If your app has local database, manipulates data a lot and create and save user produced data. This class may not be suitable, since this class only handles requested data. 
+
+In the Core Data, cached data is saved as an binary object. That means, if your data is an array, it must be saved and fetched as a single object and elements in it can't be accessed until you fetch it and convert it as a object of Array(or NSArray) type.
