@@ -11,7 +11,7 @@ Drag and Drop "HYLNetworkCaching" folder into your project.
 	// In the network module
 	let networkCache = HYLNetworkCaching(delegate: self)
 	```
-2. Implement the method in delegate. In this is the method where you get the data from network and put the data into callback closure. Specify a name for each piece of result returned from network request. We use AFNetworking in the example below.
+2. Implement the method in delegate. This is the method where you get the data from network and put the data into callback closure. Specify a name for each piece of result returned from network request. We use AFNetworking in the example below.
 
 	```swift
 	func fetchDataFromNetworkForModelName(
