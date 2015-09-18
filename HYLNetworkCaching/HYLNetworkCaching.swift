@@ -64,21 +64,33 @@ class HYLNetworkCaching: NSObject {
             let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, modelName)
             request.predicate = predicate
             var error:NSError?
-            if let results = context.executeFetchRequest(request, error: &error) {
+            do {
+                let results = try context.executeFetchRequest(request)
                 for item in results {
                     context.deleteObject(item as! NSManagedObject)
                 }
+            } catch let error1 as NSError {
+                error = error1
+            } catch {
+                fatalError()
             }
             
             /* create a new entity instance */
-            let managedObject = NSEntityDescription.insertNewObjectForEntityForName(kEntityName, inManagedObjectContext: context) as! NSManagedObject
+            let managedObject = NSEntityDescription.insertNewObjectForEntityForName(kEntityName, inManagedObjectContext: context) 
             managedObject.setValue(data, forKey: kRawDataAttributeName)
             managedObject.setValue(modelName, forKey: kModelNameAttributeName)
             
             /* save */
             var saveError:NSError?
-            if context.hasChanges && !context.save(&saveError) {
-                println("Save private context failed with error: \(saveError!.localizedDescription)")
+            if context.hasChanges {
+                do {
+                    try context.save()
+                } catch let error as NSError {
+                    saveError = error
+                    print("Save private context failed with error: \(saveError!.localizedDescription)")
+                } catch {
+                    fatalError()
+                }
             }
         }
     }
@@ -92,13 +104,17 @@ class HYLNetworkCaching: NSObject {
         fetchRequest.predicate = predicate
         
         var error:NSError? = nil
-        if let results = context.executeFetchRequest(fetchRequest, error: &error){
+        do {
+            let results = try context.executeFetchRequest(fetchRequest)
             if !results.isEmpty {
                 return results[0].valueForKey(kRawDataAttributeName)!
             }
-        }else if error != nil {
-            println("Fetch data from CoreData failed with error:\(error!.localizedDescription)")
-            return nil
+        } catch let error1 as NSError {
+            error = error1
+            if error != nil {
+                print("Fetch data from CoreData failed with error:\(error!.localizedDescription)")
+                return nil
+            }
         }
         return nil
     }
@@ -108,7 +124,7 @@ class HYLNetworkCaching: NSObject {
     lazy private var applicationCachesDirectory: NSURL = {
         // The directory the application uses to store the Core Data store file. This code uses a directory named "com.lionhylra.CoreData" in the application's documents Application Support directory.
         let urls = NSFileManager.defaultManager().URLsForDirectory(.CachesDirectory, inDomains: .UserDomainMask)
-        return urls[urls.count-1] as! NSURL
+        return urls[urls.count-1] 
         }()
     
     lazy private var managedObjectModel: NSManagedObjectModel = {
@@ -124,7 +140,10 @@ class HYLNetworkCaching: NSObject {
         let url = self.applicationCachesDirectory.URLByAppendingPathComponent("HYLNetworkCaching.sqlite")
         var error: NSError? = nil
         var failureReason = "There was an error creating or loading the application's saved data."
-        if coordinator!.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: url, options: nil, error: &error) == nil {
+        do {
+            try coordinator!.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: url, options: nil)
+        } catch var error1 as NSError {
+            error = error1
             coordinator = nil
             // Report any error we got.
             var dict = [String: AnyObject]()
@@ -136,6 +155,8 @@ class HYLNetworkCaching: NSObject {
             // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
             NSLog("Unresolved error \(error), \(error!.userInfo)")
             abort()
+        } catch {
+            fatalError()
         }
         
         return coordinator
@@ -165,11 +186,16 @@ class HYLNetworkCaching: NSObject {
     private func saveContext () {
         if let moc = self.privateManagedObjectContext {
             var error: NSError? = nil
-            if moc.hasChanges && !moc.save(&error) {
-                // Replace this implementation with code to handle the error appropriately.
-                // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                NSLog("Unresolved error \(error), \(error!.userInfo)")
-                abort()
+            if moc.hasChanges {
+                do {
+                    try moc.save()
+                } catch let error1 as NSError {
+                    error = error1
+                    // Replace this implementation with code to handle the error appropriately.
+                    // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
+                    NSLog("Unresolved error \(error), \(error!.userInfo)")
+                    abort()
+                }
             }
         }
     }
