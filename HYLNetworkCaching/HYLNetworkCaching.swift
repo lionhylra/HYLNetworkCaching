@@ -16,15 +16,15 @@ let kModelNameAttributeName = "modelName"
 //let kIndexAttributeName = "id"
 //let kSortKeyAttributName = "sortKey"
 
-protocol HYLNetworkCachingDelegate:class {
+@objc public protocol HYLNetworkCachingDelegate:class {
     func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
 }
 
-class HYLNetworkCaching: NSObject {
+@objc public class HYLNetworkCaching: NSObject {
     
     weak var delegate:HYLNetworkCachingDelegate?
     
-    init(delegate:HYLNetworkCachingDelegate){
+    public init(delegate:HYLNetworkCachingDelegate){
         self.delegate = delegate
         super.init()
         self.mainManagedObjectContext!.parentContext = self.privateManagedObjectContext!
@@ -32,25 +32,22 @@ class HYLNetworkCaching: NSObject {
     }
     
     
-    // MARK: - internal methods
-    func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
+    // MARK: - public methods
+    public func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         /* fetch cached data */
         if let cachedData: AnyObject? = fetchDataFromCoredataForModelName(modelName), successBlock = success {
             successBlock(data: cachedData)
         }
-        
+        /* if delegate is nil, return */
         if self.delegate == nil {
             return
         }
+        /* fetch data from network */
         self.delegate!.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
             self.updateCacheForModelName(modelName, data: data)
-                if let successBlock = success {
-                    successBlock(data: data)
-                }
-            }, failure:{(error)->Void in
-                if let failureBlock = failure {
-                    failureBlock(error: error)
-                }
+            success?(data: data)
+        }, failure:{(error)->Void in
+            failure?(error: error)
         })
     }
     
@@ -63,14 +60,13 @@ class HYLNetworkCaching: NSObject {
             request.entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
             let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, modelName)
             request.predicate = predicate
-            var error:NSError?
             do {
                 let results = try context.executeFetchRequest(request)
                 for item in results {
                     context.deleteObject(item as! NSManagedObject)
                 }
-            } catch let error1 as NSError {
-                error = error1
+            } catch let error as NSError {
+                print("FetchRequest failed with error: \(error.localizedDescription)")
             } catch {
                 fatalError()
             }
@@ -103,18 +99,14 @@ class HYLNetworkCaching: NSObject {
         let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, modelName)
         fetchRequest.predicate = predicate
         
-        var error:NSError? = nil
         do {
             let results = try context.executeFetchRequest(fetchRequest)
             if !results.isEmpty {
                 return results[0].valueForKey(kRawDataAttributeName)!
             }
-        } catch let error1 as NSError {
-            error = error1
-            if error != nil {
-                print("Fetch data from CoreData failed with error:\(error!.localizedDescription)")
-                return nil
-            }
+        } catch let error as NSError {
+            print("Fetch data from CoreData failed with error:\(error.localizedDescription)")
+            return nil
         }
         return nil
     }
@@ -138,12 +130,10 @@ class HYLNetworkCaching: NSObject {
         // Create the coordinator and store
         var coordinator: NSPersistentStoreCoordinator? = NSPersistentStoreCoordinator(managedObjectModel: self.managedObjectModel)
         let url = self.applicationCachesDirectory.URLByAppendingPathComponent("HYLNetworkCaching.sqlite")
-        var error: NSError? = nil
         var failureReason = "There was an error creating or loading the application's saved data."
         do {
             try coordinator!.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: url, options: nil)
-        } catch var error1 as NSError {
-            error = error1
+        } catch var error as NSError {
             coordinator = nil
             // Report any error we got.
             var dict = [String: AnyObject]()
@@ -153,7 +143,7 @@ class HYLNetworkCaching: NSObject {
             error = NSError(domain: "YOUR_ERROR_DOMAIN", code: 9999, userInfo: dict)
             // Replace this with code to handle the error appropriately.
             // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-            NSLog("Unresolved error \(error), \(error!.userInfo)")
+            NSLog("Unresolved error \(error), \(error.userInfo)")
             abort()
         } catch {
             fatalError()
@@ -184,19 +174,15 @@ class HYLNetworkCaching: NSObject {
     // MARK: - Core Data Saving support
     
     private func saveContext () {
-        if let moc = self.privateManagedObjectContext {
-            var error: NSError? = nil
-            if moc.hasChanges {
-                do {
-                    try moc.save()
-                } catch let error1 as NSError {
-                    error = error1
-                    // Replace this implementation with code to handle the error appropriately.
-                    // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                    NSLog("Unresolved error \(error), \(error!.userInfo)")
-                    abort()
-                }
-            }
+        guard let context = self.privateManagedObjectContext where context.hasChanges else { return }
+        
+        do {
+            try context.save()
+        } catch let error as NSError {
+            // Replace this implementation with code to handle the error appropriately.
+            // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
+            NSLog("Unresolved error \(error), \(error.userInfo)")
+            abort()
         }
     }
 
