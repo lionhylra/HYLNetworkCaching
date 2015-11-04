@@ -33,11 +33,16 @@ let kModelNameAttributeName = "modelName"
     
     
     // MARK: - public methods
-    public func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
+    public func fetchDataForModelName(modelName:String,cacheOnly:Bool ,success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         /* fetch cached data */
         if let cachedData: AnyObject? = fetchDataFromCoredataForModelName(modelName), successBlock = success {
             successBlock(data: cachedData)
         }
+        /* apply policy */
+        if cacheOnly {
+            return
+        }
+        
         /* if delegate is nil, return */
         if self.delegate == nil {
             return
@@ -46,9 +51,32 @@ let kModelNameAttributeName = "modelName"
         self.delegate!.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
             self.updateCacheForModelName(modelName, data: data)
             success?(data: data)
-        }, failure:{(error)->Void in
-            failure?(error: error)
+            }, failure:{(error)->Void in
+                failure?(error: error)
         })
+    }
+    
+    public func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
+        fetchDataForModelName(modelName, cacheOnly: false, success: success, failure: failure)
+    }
+    
+    public func clearCache(){
+        let context = self.privateManagedObjectContext!
+        context.performBlock { () -> Void in
+            /* delete all records for that model */
+            let request = NSFetchRequest()
+            request.entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
+            do {
+                let results = try context.executeFetchRequest(request)
+                for item in results {
+                    context.deleteObject(item as! NSManagedObject)
+                }
+            } catch let error as NSError {
+                print("FetchRequest failed with error: \(error.localizedDescription)")
+            } catch {
+                fatalError()
+            }
+        }
     }
     
     // MARK: - private methods
