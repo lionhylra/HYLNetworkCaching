@@ -35,7 +35,7 @@ let kModelNameAttributeName = "modelName"
     // MARK: - public methods
     public func fetchDataForModelName(modelName:String,cacheOnly:Bool ,success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         /* fetch cached data */
-        if let cachedData: AnyObject? = fetchDataFromCoredataForModelName(modelName), successBlock = success {
+        if let cachedData = fetchDataFromCoredataForModelName(modelName), successBlock = success {
             successBlock(data: cachedData)
         }
         /* apply policy */
@@ -76,6 +76,17 @@ let kModelNameAttributeName = "modelName"
             } catch {
                 fatalError()
             }
+            
+            /* save change */
+            if context.hasChanges {
+                do {
+                    try context.save()
+                } catch let error as NSError {
+                    print("Save private context failed with error: \(error.localizedDescription)")
+                } catch {
+                    fatalError()
+                }
+            }
         }
     }
     
@@ -105,13 +116,11 @@ let kModelNameAttributeName = "modelName"
             managedObject.setValue(modelName, forKey: kModelNameAttributeName)
             
             /* save */
-            var saveError:NSError?
             if context.hasChanges {
                 do {
                     try context.save()
                 } catch let error as NSError {
-                    saveError = error
-                    print("Save private context failed with error: \(saveError!.localizedDescription)")
+                    print("Save private context failed with error: \(error.localizedDescription)")
                 } catch {
                     fatalError()
                 }
