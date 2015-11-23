@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model userDefinedModelVersionIdentifier="" type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="9057" systemVersion="15B42" minimumToolsVersion="Xcode 4.3">
     <entity name="CachedData" syncable="YES">
-        <attribute name="id" optional="YES" attributeType="String" indexed="YES" syncable="YES"/>
+        <attribute name="filterKey1" optional="YES" attributeType="String" indexed="YES" syncable="YES"/>
         <attribute name="modelName" attributeType="String" indexed="YES" syncable="YES"/>
         <attribute name="rawData" attributeType="Transformable" syncable="YES"/>
-        <attribute name="sortKey" optional="YES" attributeType="String" syncable="YES"/>
     </entity>
     <elements>
-        <element name="CachedData" positionX="-63" positionY="-18" width="128" height="105"/>
+        <element name="CachedData" positionX="-63" positionY="-18" width="128" height="90"/>
     </elements>
 </model>

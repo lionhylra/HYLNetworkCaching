@@ -11,13 +11,16 @@ import CoreData
 
 let kManagedObjectModelName = "CachedData"
 let kEntityName = "CachedData"
+/* Attributes */
 let kRawDataAttributeName = "rawData"
 let kModelNameAttributeName = "modelName"
-//let kIndexAttributeName = "id"
+let kFilterKey1AttributeName = "filterKey1"
+let kFilterKey1DefaultValue = "NA"
 //let kSortKeyAttributName = "sortKey"
 
 @objc public protocol HYLNetworkCachingDelegate:class {
-    func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
+//    func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
+    func fetchDataFromNetworkForModelName(modelName:String,filterKey1:String?, success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
 }
 
 @objc public class HYLNetworkCaching: NSObject {
@@ -33,9 +36,11 @@ let kModelNameAttributeName = "modelName"
     
     
     // MARK: - public methods
-    public func fetchDataForModelName(modelName:String,cacheOnly:Bool ,success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
+    // MARK: -
+    // MARK: fetchData methods
+    public func fetchDataForModelName(modelName:String, filterKey1:String,cacheOnly:Bool, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         /* fetch cached data */
-        if let cachedData = fetchDataFromCoredataForModelName(modelName), successBlock = success {
+        if let cachedData = fetchDataFromCoredataForModelName(modelName, filterKey1: filterKey1), successBlock = success {
             successBlock(data: cachedData)
         }
         /* apply policy */
@@ -44,22 +49,30 @@ let kModelNameAttributeName = "modelName"
         }
         
         /* if delegate is nil, return */
-        if self.delegate == nil {
+        guard let delegate = self.delegate else{
             return
         }
+        
         /* fetch data from network */
-        self.delegate!.fetchDataFromNetworkForModelName(modelName, success: { (data) -> Void in
-            self.updateCacheForModelName(modelName, data: data)
+        delegate.fetchDataFromNetworkForModelName(modelName, filterKey1: (filterKey1 == kFilterKey1DefaultValue ? nil : filterKey1), success: { (data) -> Void in
             success?(data: data)
-            }, failure:{(error)->Void in
-                failure?(error: error)
+            self.updateCacheForModelName(modelName, filterKey1: filterKey1, data: data)
+        }, failure:{ (error) -> Void in
+            failure?(error: error)
         })
+    }
+
+    
+    public func fetchDataForModelName(modelName:String,cacheOnly:Bool ,success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
+        fetchDataForModelName(modelName, filterKey1: kFilterKey1DefaultValue, cacheOnly: cacheOnly, success: success, failure: failure)
     }
     
     public func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
         fetchDataForModelName(modelName, cacheOnly: false, success: success, failure: failure)
     }
     
+    
+    // MARK: clearCache
     public func clearCache(){
         let context = self.privateManagedObjectContext!
         context.performBlock { () -> Void in
@@ -91,13 +104,14 @@ let kModelNameAttributeName = "modelName"
     }
     
     // MARK: - private methods
-    private func updateCacheForModelName(modelName:String, data:AnyObject){
+    
+    private func updateCacheForModelName(modelName:String, filterKey1:String = kFilterKey1DefaultValue, data:AnyObject){
         let context = self.privateManagedObjectContext!
         context.performBlock { () -> Void in
             /* delete all records for that model */
             let request = NSFetchRequest()
             request.entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
-            let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, modelName)
+            let predicate = NSPredicate(format: "%K == %@ && %K == %@", kModelNameAttributeName, modelName, kFilterKey1AttributeName, filterKey1)
             request.predicate = predicate
             do {
                 let results = try context.executeFetchRequest(request)
@@ -111,10 +125,10 @@ let kModelNameAttributeName = "modelName"
             }
             
             /* create a new entity instance */
-            let managedObject = NSEntityDescription.insertNewObjectForEntityForName(kEntityName, inManagedObjectContext: context) 
+            let managedObject = NSEntityDescription.insertNewObjectForEntityForName(kEntityName, inManagedObjectContext: context)
             managedObject.setValue(data, forKey: kRawDataAttributeName)
             managedObject.setValue(modelName, forKey: kModelNameAttributeName)
-            
+            managedObject.setValue(filterKey1, forKey: kFilterKey1AttributeName)
             /* save */
             if context.hasChanges {
                 do {
@@ -126,14 +140,15 @@ let kModelNameAttributeName = "modelName"
                 }
             }
         }
+
     }
     
-    private func fetchDataFromCoredataForModelName(modelName:String)->AnyObject?{
+    private func fetchDataFromCoredataForModelName(modelName:String, filterKey1:String = kFilterKey1DefaultValue)->AnyObject?{
         let context = self.mainManagedObjectContext!
         let fetchRequest = NSFetchRequest()
         let entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
         fetchRequest.entity = entity
-        let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, modelName)
+        let predicate = NSPredicate(format: "%K == %@ && %K == %@", kModelNameAttributeName, modelName, kFilterKey1AttributeName, filterKey1)
         fetchRequest.predicate = predicate
         
         do {
@@ -169,7 +184,8 @@ let kModelNameAttributeName = "modelName"
         let url = self.applicationCachesDirectory.URLByAppendingPathComponent("HYLNetworkCaching.sqlite")
         var failureReason = "There was an error creating or loading the application's saved data."
         do {
-            try coordinator!.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: url, options: nil)
+            let options = [NSMigratePersistentStoresAutomaticallyOption:true,NSInferMappingModelAutomaticallyOption:true]
+            try coordinator!.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: url, options: options)
         } catch var error as NSError {
             coordinator = nil
             // Report any error we got.
@@ -223,7 +239,7 @@ let kModelNameAttributeName = "modelName"
         }
     }
 
-    func privateManagedObjectContextDidSave(notification:NSNotification) {
+    @objc private func privateManagedObjectContextDidSave(notification:NSNotification) {
         self.mainManagedObjectContext!.performBlock { () -> Void in
             self.mainManagedObjectContext!.mergeChangesFromContextDidSaveNotification(notification)
         }
