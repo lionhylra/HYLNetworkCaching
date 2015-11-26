@@ -23,7 +23,7 @@ let kModelNameAttributeName = "modelName"
 }
 
 @objc public protocol HYLNetworkCachingDelegate:class {
-    func fetchDataFromNetwork(itemIdentifier identifier:String?, URL url:String,parameters:Dictionary<String, String>?, successHandler:((data:AnyObject)->Void), failureHandler:((error:NSError)->Void))
+    func fetchDataFromNetwork(URL url:String,parameters:Dictionary<String, String>?, successHandler:((data:AnyObject)->Void), failureHandler:((error:NSError)->Void))
 }
 
 @objc public class HYLNetworkCaching: NSObject {
@@ -41,10 +41,9 @@ let kModelNameAttributeName = "modelName"
     // MARK: - public methods
     // MARK: -
     // MARK: fetchData methods
-    public func fetchData(itemIdentifier identifier:String?, URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
-        let identifier = identifier ?? url
+    public func fetchData(URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
         /* load cached data according to policy */
-        if let cachedData = fetchCachedData(itemIdentifier: identifier), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
+        if let cachedData = fetchCachedData(itemIdentifier: url), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
             successHandler(data: cachedData)
             if cachePolicy == .ReturnCacheDataElseLoad {
                 return
@@ -57,9 +56,9 @@ let kModelNameAttributeName = "modelName"
         
         guard let delegate = self.delegate else { return }
         
-        delegate.fetchDataFromNetwork(itemIdentifier: identifier, URL: url,parameters: parameters, successHandler: { (data) -> Void in
+        delegate.fetchDataFromNetwork(URL: url,parameters: parameters, successHandler: { (data) -> Void in
             successHandler?(data: data)
-            self.updateCache(itemIdentifier: identifier, data: data)
+            self.updateCache(itemIdentifier: url, data: data)
         }, failureHandler: { (error) -> Void in
             failureHandler?(error: error)
         })
