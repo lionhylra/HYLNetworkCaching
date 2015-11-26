@@ -14,13 +14,16 @@ let kEntityName = "CachedData"
 /* Attributes */
 let kRawDataAttributeName = "rawData"
 let kModelNameAttributeName = "modelName"
-let kFilterKey1AttributeName = "filterKey1"
-let kFilterKey1DefaultValue = "NA"
+//let kFilterKey1AttributeName = "filterKey1"
+//let kFilterKey1DefaultValue = "NA"
 //let kSortKeyAttributName = "sortKey"
 
+@objc public enum HYLNetworkCachePolicy : Int{
+    case DefaultCachePolicy, ReturnCacheDataDontLoad, ReturnCacheDataElseLoad, LoadWithoutCacheData
+}
+
 @objc public protocol HYLNetworkCachingDelegate:class {
-//    func fetchDataFromNetworkForModelName(modelName:String,success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
-    func fetchDataFromNetworkForModelName(modelName:String,filterKey1:String?, success:((data:AnyObject)->Void),failure:((error:NSError)->Void))
+    func fetchDataFromNetwork(itemIdentifier identifier:String?, URL url:String,parameters:Dictionary<String, String>?, successHandler:((data:AnyObject)->Void), failureHandler:((error:NSError)->Void))
 }
 
 @objc public class HYLNetworkCaching: NSObject {
@@ -38,39 +41,30 @@ let kFilterKey1DefaultValue = "NA"
     // MARK: - public methods
     // MARK: -
     // MARK: fetchData methods
-    public func fetchDataForModelName(modelName:String, filterKey1:String,cacheOnly:Bool, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
-        /* fetch cached data */
-        if let cachedData = fetchDataFromCoredataForModelName(modelName, filterKey1: filterKey1), successBlock = success {
-            successBlock(data: cachedData)
+    public func fetchData(itemIdentifier identifier:String?, URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
+        let identifier = identifier ?? url
+        /* load cached data according to policy */
+        if let cachedData = fetchCachedData(itemIdentifier: identifier), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
+            successHandler(data: cachedData)
+            if cachePolicy == .ReturnCacheDataElseLoad {
+                return
+            }
         }
-        /* apply policy */
-        if cacheOnly {
+        
+        if cachePolicy == .ReturnCacheDataDontLoad {
             return
         }
         
-        /* if delegate is nil, return */
-        guard let delegate = self.delegate else{
-            return
-        }
+        guard let delegate = self.delegate else { return }
         
-        /* fetch data from network */
-        delegate.fetchDataFromNetworkForModelName(modelName, filterKey1: (filterKey1 == kFilterKey1DefaultValue ? nil : filterKey1), success: { (data) -> Void in
-            success?(data: data)
-            self.updateCacheForModelName(modelName, filterKey1: filterKey1, data: data)
-        }, failure:{ (error) -> Void in
-            failure?(error: error)
+        delegate.fetchDataFromNetwork(itemIdentifier: identifier, URL: url,parameters: parameters, successHandler: { (data) -> Void in
+            successHandler?(data: data)
+            self.updateCache(itemIdentifier: identifier, data: data)
+        }, failureHandler: { (error) -> Void in
+            failureHandler?(error: error)
         })
+        
     }
-
-    
-    public func fetchDataForModelName(modelName:String,cacheOnly:Bool ,success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
-        fetchDataForModelName(modelName, filterKey1: kFilterKey1DefaultValue, cacheOnly: cacheOnly, success: success, failure: failure)
-    }
-    
-    public func fetchDataForModelName(modelName:String, success:((data:AnyObject?)->Void)?, failure:((error:NSError)->Void)?){
-        fetchDataForModelName(modelName, cacheOnly: false, success: success, failure: failure)
-    }
-    
     
     // MARK: clearCache
     public func clearCache(){
@@ -105,13 +99,13 @@ let kFilterKey1DefaultValue = "NA"
     
     // MARK: - private methods
     
-    private func updateCacheForModelName(modelName:String, filterKey1:String = kFilterKey1DefaultValue, data:AnyObject){
+    private func updateCache(itemIdentifier identifier:String, data:AnyObject){
         let context = self.privateManagedObjectContext!
         context.performBlock { () -> Void in
             /* delete all records for that model */
             let request = NSFetchRequest()
             request.entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
-            let predicate = NSPredicate(format: "%K == %@ && %K == %@", kModelNameAttributeName, modelName, kFilterKey1AttributeName, filterKey1)
+            let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, identifier)
             request.predicate = predicate
             do {
                 let results = try context.executeFetchRequest(request)
@@ -127,8 +121,7 @@ let kFilterKey1DefaultValue = "NA"
             /* create a new entity instance */
             let managedObject = NSEntityDescription.insertNewObjectForEntityForName(kEntityName, inManagedObjectContext: context)
             managedObject.setValue(data, forKey: kRawDataAttributeName)
-            managedObject.setValue(modelName, forKey: kModelNameAttributeName)
-            managedObject.setValue(filterKey1, forKey: kFilterKey1AttributeName)
+            managedObject.setValue(identifier, forKey: kModelNameAttributeName)
             /* save */
             if context.hasChanges {
                 do {
@@ -143,12 +136,12 @@ let kFilterKey1DefaultValue = "NA"
 
     }
     
-    private func fetchDataFromCoredataForModelName(modelName:String, filterKey1:String = kFilterKey1DefaultValue)->AnyObject?{
+    private func fetchCachedData(itemIdentifier identifier:String)->AnyObject?{
         let context = self.mainManagedObjectContext!
         let fetchRequest = NSFetchRequest()
         let entity = NSEntityDescription.entityForName(kEntityName, inManagedObjectContext: context)
         fetchRequest.entity = entity
-        let predicate = NSPredicate(format: "%K == %@ && %K == %@", kModelNameAttributeName, modelName, kFilterKey1AttributeName, filterKey1)
+        let predicate = NSPredicate(format: "%K == %@", kModelNameAttributeName, identifier)
         fetchRequest.predicate = predicate
         
         do {
