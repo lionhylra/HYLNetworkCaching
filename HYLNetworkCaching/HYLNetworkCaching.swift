@@ -41,12 +41,12 @@ let kModelNameAttributeName = "modelName"
     // MARK: - public methods
     // MARK: -
     // MARK: fetchData methods
-    public func fetchData(var URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
-        if let parameters = parameters {
-            buildURL(originalURL: &url, withQueryDictionary: parameters)
-        }
+    public func fetchData(URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
+        /* build url with query */
+        let urlWithQuery:String = parameters != nil ? URLWithQuery(originalURL: url, withQueryDictionary: parameters!) : url
+        
         /* load cached data according to policy */
-        if let cachedData = fetchCachedData(itemIdentifier: url), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
+        if let cachedData = fetchCachedData(itemIdentifier: urlWithQuery), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
             successHandler(data: cachedData)
             if cachePolicy == .ReturnCacheDataElseLoad {
                 return
@@ -60,8 +60,8 @@ let kModelNameAttributeName = "modelName"
         guard let delegate = self.delegate else { return }
         
         delegate.fetchDataFromNetwork(URL: url,parameters: parameters, successHandler: { (data) -> Void in
-            successHandler?(data: data)            
-            self.updateCache(itemIdentifier: url, data: data)
+            successHandler?(data: data)
+            self.updateCache(itemIdentifier: urlWithQuery, data: data)
         }, failureHandler: { (error) -> Void in
             failureHandler?(error: error)
         })
@@ -158,14 +158,15 @@ let kModelNameAttributeName = "modelName"
         return nil
     }
     
-    private func buildURL(inout originalURL url:String, withQueryDictionary parameters:Dictionary<String, String>){
+    private func URLWithQuery(originalURL url:String, withQueryDictionary parameters:Dictionary<String, String>)->String{
         if let components = NSURLComponents(string: url) {
             components.queryItems = [NSURLQueryItem]()
             for (key, value) in parameters{
                 components.queryItems?.append(NSURLQueryItem(name: key, value: value))
             }
-            url = components.string!
+            return components.string!
         }
+        return url
     }
     // MARK: - Core Data stack
     
