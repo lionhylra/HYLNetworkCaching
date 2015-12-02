@@ -41,7 +41,10 @@ let kModelNameAttributeName = "modelName"
     // MARK: - public methods
     // MARK: -
     // MARK: fetchData methods
-    public func fetchData(URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
+    public func fetchData(var URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?)->Void)?, failureHandler:((error:NSError)->Void)?){
+        if let parameters = parameters {
+            buildURL(originalURL: &url, withQueryDictionary: parameters)
+        }
         /* load cached data according to policy */
         if let cachedData = fetchCachedData(itemIdentifier: url), successHandler = successHandler where cachePolicy != .LoadWithoutCacheData {
             successHandler(data: cachedData)
@@ -57,7 +60,7 @@ let kModelNameAttributeName = "modelName"
         guard let delegate = self.delegate else { return }
         
         delegate.fetchDataFromNetwork(URL: url,parameters: parameters, successHandler: { (data) -> Void in
-            successHandler?(data: data)
+            successHandler?(data: data)            
             self.updateCache(itemIdentifier: url, data: data)
         }, failureHandler: { (error) -> Void in
             failureHandler?(error: error)
@@ -155,6 +158,15 @@ let kModelNameAttributeName = "modelName"
         return nil
     }
     
+    private func buildURL(inout originalURL url:String, withQueryDictionary parameters:Dictionary<String, String>){
+        if let components = NSURLComponents(string: url) {
+            components.queryItems = [NSURLQueryItem]()
+            for (key, value) in parameters{
+                components.queryItems?.append(NSURLQueryItem(name: key, value: value))
+            }
+            url = components.string!
+        }
+    }
     // MARK: - Core Data stack
     
     lazy private var applicationCachesDirectory: NSURL = {
