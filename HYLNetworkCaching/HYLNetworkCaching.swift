@@ -41,7 +41,7 @@ let kModelNameAttributeName = "modelName"
     // MARK: - public methods
     // MARK: -
     // MARK: fetchData methods
-    public func fetchData(URL url:String, parameters:Dictionary<String, String>?, cachePolicy:HYLNetworkCachePolicy, successHandler:((data:AnyObject?, isCacheData:Bool)->Void)?, failureHandler:((error:NSError)->Void)?){
+    public func fetchData(URL url:String, parameters:Dictionary<String, String>? = nil, cachePolicy:HYLNetworkCachePolicy = .DefaultCachePolicy, successHandler:((data:AnyObject?, isCacheData:Bool)->Void)?, failureHandler:((error:NSError)->Void)?){
         /* build url with query */
         let urlWithQuery:String = parameters != nil ? URLWithQuery(originalURL: url, withQueryDictionary: parameters!) : url
         
@@ -57,7 +57,10 @@ let kModelNameAttributeName = "modelName"
             return
         }
         
-        guard let delegate = self.delegate else { return }
+        guard let delegate = self.delegate else {
+            print("HYLNetworkCaching Error: delegate is not set!")
+            return
+        }
         
         delegate.fetchDataFromNetwork(URL: url,parameters: parameters, successHandler: { (data) -> Void in
             successHandler?(data: data, isCacheData:false)
