@@ -34,7 +34,11 @@ let kModelNameAttributeName = "modelName"
         self.delegate = delegate
         super.init()
         self.mainManagedObjectContext!.parentContext = self.privateManagedObjectContext!
-        NSNotificationCenter.defaultCenter().addObserver(self, selector: "privateManagedObjectContextDidSave:", name: NSManagedObjectContextDidSaveNotification, object: self.privateManagedObjectContext!)
+        #if swift(>=2.2)
+            NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(self.privateManagedObjectContextDidSave(_:)), name: NSManagedObjectContextDidSaveNotification, object: self.privateManagedObjectContext!)
+        #else
+            NSNotificationCenter.defaultCenter().addObserver(self, selector: "privateManagedObjectContextDidSave:", name: NSManagedObjectContextDidSaveNotification, object: self.privateManagedObjectContext!)
+        #endif
     }
     
     
