@@ -9,11 +9,11 @@
 import UIKit
 import CoreData
 
-let kManagedObjectModelName = "CachedData"
-let kEntityName = "CachedData"
+private let kManagedObjectModelName = "CachedData"
+private let kEntityName = "CachedData"
 /* Attributes */
-let kRawDataAttributeName = "rawData"
-let kModelNameAttributeName = "modelName"
+private let kRawDataAttributeName = "rawData"
+private let kModelNameAttributeName = "modelName"
 //let kFilterKey1AttributeName = "filterKey1"
 //let kFilterKey1DefaultValue = "NA"
 //let kSortKeyAttributName = "sortKey"
